@@ -2,24 +2,25 @@
 
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
 
-Plataforma para gerenciamento de eventos universitários com inscrições online, controle de presença via QR Code, limite de vagas e emissão automática de certificados.
+Sistema para organização de eventos universitários com inscrições online, controle de presença via QR Code e gerenciamento de vagas.
 
 ---
 
 # 1. Visão Geral e a Dor
 
-Eventos universitários frequentemente são organizados de forma manual, utilizando formulários, planilhas e listas de presença físicas. Esse processo gera problemas como superlotação, dificuldade no controle de participantes, emissão manual de certificados e falta de métricas sobre os eventos realizados.
+Muitos eventos universitários ainda são organizados utilizando formulários, planilhas e listas de presença manuais. Esse processo dificulta o controle de participantes, gera problemas com limite de vagas e torna o gerenciamento do evento mais trabalhoso.
 
-O CampusFlow centraliza todo o fluxo de gerenciamento de eventos acadêmicos em uma única plataforma, automatizando tarefas operacionais e melhorando a experiência tanto dos organizadores quanto dos participantes.
+O CampusFlow foi criado para simplificar a organização desses eventos, centralizando inscrições, presença e acompanhamento dos participantes em uma única plataforma.
+
+---
 
 ## O que está sendo resolvido?
 
 - Inscrições desorganizadas
 - Controle manual de presença
-- Dificuldade em controlar limite de vagas
-- Emissão manual de certificados
-- Falta de acompanhamento dos eventos
-- Baixa visibilidade sobre métricas de participação
+- Falta de controle de vagas
+- Dificuldade em acompanhar participantes
+- Processo manual de emissão de certificados
 
 ---
 
@@ -27,86 +28,129 @@ O CampusFlow centraliza todo o fluxo de gerenciamento de eventos acadêmicos em 
 
 - Centros acadêmicos
 - Empresas juniores
-- Organizadores de hackathons
-- Coordenações universitárias
+- Organizadores de palestras e workshops
+- Universidades
 - Participantes dos eventos
 
 ---
 
-## Por que isso importa para produto/negócio?
+## Por que isso importa?
 
-A desorganização operacional impacta diretamente:
-- experiência dos participantes
-- produtividade dos organizadores
-- credibilidade do evento
-- controle da capacidade do evento
+A organização manual gera:
+- perda de tempo
+- erros no controle de participantes
+- dificuldade operacional
+- experiência ruim para os usuários
 
-O sistema reduz tarefas manuais, melhora a gestão operacional e fornece uma experiência mais moderna e eficiente para eventos acadêmicos.
+O sistema automatiza processos simples do evento e melhora a organização geral.
 
 ---
 
 # 2. Arquitetura e Decisões Técnicas
 
-| Camada | Escolha | Por que escolhi isso? | Alternativa considerada | Nota de impacto |
-|---|---|---|---|---|
-| Front-end | React + TypeScript | Componentização, reutilização e facilidade na construção de interfaces modernas | Vue.js | Escalabilidade e manutenção |
-| UI | Tailwind CSS + shadcn/ui | Agilidade no desenvolvimento e identidade visual customizável | Material UI | Time-to-market e consistência visual |
-| Back-end | Spring Boot | Robustez, segurança e excelente suporte para APIs REST | Node.js | Escalabilidade e produtividade |
-| Banco de dados | PostgreSQL | Integridade relacional e suporte transacional para controle de vagas e inscrições | MongoDB | Consistência e confiabilidade |
-| API | REST | Simplicidade de integração entre front-end e back-end | GraphQL | Facilidade de manutenção |
-| Autenticação | JWT | Autenticação stateless e integração simples com SPA | Session-based auth | Escalabilidade |
-| Infraestrutura | Docker | Padronização do ambiente e facilidade no setup do projeto | Setup manual | Produtividade e portabilidade |
+| Camada | Escolha | Motivo |
+|---|---|---|
+| Front-end | React + TypeScript | Facilidade na criação de interfaces modernas e componentizadas |
+| UI | Tailwind CSS | Desenvolvimento rápido e estilização simples |
+| Back-end | Spring Boot | Estrutura robusta para APIs REST |
+| Banco de dados | PostgreSQL | Facilidade para trabalhar com relacionamentos e inscrições |
+| API | REST | Comunicação simples entre front-end e back-end |
+| Autenticação | JWT | Controle simples de autenticação |
 
 ---
 
 # 3. Demonstração
 
-- Demo rápida: [LINK DO DEPLOY]
-- Vídeo demonstrativo: [LINK DO VÍDEO]
+- Demo: [LINK DO DEPLOY]
+- Vídeo: [LINK DO VÍDEO]
 
 ## Fluxo principal
 
 1. Organizador cria um evento
 2. Usuário realiza inscrição
-3. Sistema gera QR Code individual
-4. Organizador realiza check-in do participante
-5. Sistema libera certificado automaticamente
-
-O fluxo principal pode ser compreendido rapidamente pelo avaliador.
+3. Sistema gera QR Code
+4. Organizador faz check-in do participante
+5. Participação é registrada
 
 ---
 
 # 4. Destaque de Engenharia / "The Hard Part"
 
-O principal desafio técnico do projeto foi garantir consistência no controle de vagas durante múltiplas inscrições simultâneas.
-
-A solução utiliza transações no banco de dados para evitar que o limite de vagas seja ultrapassado.
+Um dos principais desafios foi controlar o limite de vagas do evento para impedir inscrições acima da capacidade definida.
 
 ```java
 @Transactional
-public EnrollmentResponse enrollUser(Long eventId, Long userId) {
+public Enrollment enroll(Long userId, Long eventId) {
 
     Event event = eventRepository.findById(eventId)
-        .orElseThrow(() -> new RuntimeException("Evento não encontrado"));
+        .orElseThrow();
 
-    if (event.getAvailableSpots() <= 0) {
-        throw new RuntimeException("Não há vagas disponíveis");
-    }
-
-    boolean alreadyEnrolled = enrollmentRepository
-        .existsByUserIdAndEventId(userId, eventId);
-
-    if (alreadyEnrolled) {
-        throw new RuntimeException("Usuário já inscrito");
+    if(event.getAvailableSpots() <= 0) {
+        throw new RuntimeException("Evento lotado");
     }
 
     Enrollment enrollment = new Enrollment(userId, eventId);
 
     enrollmentRepository.save(enrollment);
 
-    event.decreaseAvailableSpots();
+    event.setAvailableSpots(
+        event.getAvailableSpots() - 1
+    );
 
     eventRepository.save(event);
 
-    return new EnrollmentResponse("Inscrição realizada com sucesso");
+    return enrollment;
 }
+## Resultado
+
+- Controle correto das vagas
+- Evita inscrições acima do limite
+- Mantém os dados consistentes
+
+---
+
+# 5. Insights e Valor de Negócio
+
+## Para produto
+
+- Facilita organização dos eventos
+- Reduz trabalho manual
+- Melhora experiência dos participantes
+
+---
+
+## Para negócio
+
+- Melhor controle operacional
+- Organização mais profissional
+- Facilidade para acompanhar eventos
+
+---
+
+## Para dados
+
+O sistema pode gerar informações como:
+
+- quantidade de inscritos
+- presença nos eventos
+- eventos mais populares
+
+---
+
+# 6. Instalação e Uso
+
+```bash
+# Clone o projeto
+git clone https://github.com/seu-usuario/campusflow.git
+
+cd campusflow
+
+# Execute os containers
+docker compose up --build
+
+# Front-end
+npm install
+npm run dev
+
+# Back-end
+./mvnw spring-boot:run
