@@ -6,15 +6,13 @@ Sistema para organização de eventos universitários com inscrições online, c
 
 ---
 
-# 1. Visão Geral e a Dor
+## 1. Visão Geral e a Dor
 
 Muitos eventos universitários ainda são organizados utilizando formulários, planilhas e listas de presença manuais. Esse processo dificulta o controle de participantes, gera problemas com limite de vagas e torna o gerenciamento do evento mais trabalhoso.
 
 O CampusFlow foi criado para simplificar a organização desses eventos, centralizando inscrições, presença e acompanhamento dos participantes em uma única plataforma.
 
----
-
-## O que está sendo resolvido?
+### O que está sendo resolvido?
 
 - Inscrições desorganizadas
 - Controle manual de presença
@@ -22,9 +20,7 @@ O CampusFlow foi criado para simplificar a organização desses eventos, central
 - Dificuldade em acompanhar participantes
 - Processo manual de emissão de certificados
 
----
-
-## Quem sofre com esse problema?
+### Quem sofre com esse problema?
 
 - Centros acadêmicos
 - Empresas juniores
@@ -32,39 +28,31 @@ O CampusFlow foi criado para simplificar a organização desses eventos, central
 - Universidades
 - Participantes dos eventos
 
----
+### Por que isso importa?
 
-## Por que isso importa?
-
-A organização manual gera:
-- perda de tempo
-- erros no controle de participantes
-- dificuldade operacional
-- experiência ruim para os usuários
-
-O sistema automatiza processos simples do evento e melhora a organização geral.
+A organização manual gera perda de tempo, erros no controle de participantes, dificuldade operacional e experiência ruim para os usuários. O CampusFlow automatiza esses processos e melhora a organização geral.
 
 ---
 
-# 2. Arquitetura e Decisões Técnicas
+## 2. Arquitetura e Decisões Técnicas
 
-| Camada | Escolha | Motivo |
-|---|---|---|
-| Front-end | React + TypeScript | Facilidade na criação de interfaces modernas e componentizadas |
-| UI | Tailwind CSS | Desenvolvimento rápido e estilização simples |
-| Back-end | Spring Boot | Estrutura robusta para APIs REST |
-| Banco de dados | PostgreSQL | Facilidade para trabalhar com relacionamentos e inscrições |
-| API | REST | Comunicação simples entre front-end e back-end |
-| Autenticação | JWT | Controle simples de autenticação |
+| Camada | Escolha | Motivo | Alternativa considerada | Nota de impacto |
+|--------|---------|--------|------------------------|-----------------|
+| Front-end | React + TypeScript | Interfaces modernas e componentizadas com tipagem segura | Vue.js | Escalabilidade e manutenção |
+| UI | Tailwind CSS | Desenvolvimento rápido sem sair do HTML | Bootstrap | Time-to-market |
+| Back-end | Spring Boot | Estrutura robusta para APIs REST com ecossistema maduro | Node.js | Segurança e organização |
+| Banco de dados | PostgreSQL | Relacionamentos complexos entre eventos, inscrições e usuários | MySQL | Consistência e queries |
+| API | REST | Comunicação simples e bem documentada entre front e back | GraphQL | Integração e versionamento |
+| Autenticação | JWT | Stateless, sem necessidade de sessão no servidor | Sessions | Performance e escalabilidade |
 
 ---
 
-# 3. Demonstração
+## 3. Demonstração
 
-- Demo: [LINK DO DEPLOY]
-- Vídeo: [LINK DO VÍDEO]
+- **Demo:** [LINK DO DEPLOY]
+- **Vídeo:** [LINK DO VÍDEO]
 
-## Fluxo principal
+### Fluxo principal (15 segundos)
 
 1. Organizador cria um evento
 2. Usuário realiza inscrição
@@ -74,83 +62,97 @@ O sistema automatiza processos simples do evento e melhora a organização geral
 
 ---
 
-# 4. Destaque de Engenharia / "The Hard Part"
+## 4. Destaque de Engenharia / "The Hard Part"
 
-Um dos principais desafios foi controlar o limite de vagas do evento para impedir inscrições acima da capacidade definida.
+Um dos principais desafios foi controlar o limite de vagas do evento para impedir inscrições acima da capacidade definida — especialmente em cenários de acesso simultâneo.
+
+A solução foi usar `@Transactional` para garantir que a verificação e o decremento de vagas aconteçam de forma atômica, evitando condições de corrida.
 
 ```java
 @Transactional
 public Enrollment enroll(Long userId, Long eventId) {
 
+    // Busca o evento ou lança exceção se não existir
     Event event = eventRepository.findById(eventId)
-        .orElseThrow();
+        .orElseThrow(() -> new EventNotFoundException(eventId));
 
-    if(event.getAvailableSpots() <= 0) {
-        throw new RuntimeException("Evento lotado");
+    // Verifica disponibilidade antes de prosseguir
+    if (event.getAvailableSpots() <= 0) {
+        throw new EventFullException("Evento sem vagas disponíveis");
     }
 
+    // Cria e persiste a inscrição
     Enrollment enrollment = new Enrollment(userId, eventId);
-
     enrollmentRepository.save(enrollment);
 
-    event.setAvailableSpots(
-        event.getAvailableSpots() - 1
-    );
-
+    // Decrementa vagas de forma atômica com a transação
+    event.setAvailableSpots(event.getAvailableSpots() - 1);
     eventRepository.save(event);
 
     return enrollment;
 }
-## Resultado
+```
 
-- Controle correto das vagas
-- Evita inscrições acima do limite
-- Mantém os dados consistentes
+**Impacto:** controle correto das vagas, sem inscrições acima do limite e com dados sempre consistentes.
 
 ---
 
-# 5. Insights e Valor de Negócio
+## 5. Insights e Valor de Negócio
 
-## Para produto
+**Para produto:**
+- Facilita organização dos eventos e reduz trabalho manual
+- Melhora experiência dos participantes com fluxo digital
 
-- Facilita organização dos eventos
-- Reduz trabalho manual
-- Melhora experiência dos participantes
+**Para negócio:**
+- Melhor controle operacional e organização mais profissional
+- Facilidade para acompanhar e replicar eventos
 
----
-
-## Para negócio
-
-- Melhor controle operacional
-- Organização mais profissional
-- Facilidade para acompanhar eventos
+**Para dados:**
+O sistema pode gerar informações como quantidade de inscritos por evento, taxa de presença, eventos mais populares e perfil dos participantes — base para decisões futuras de produto.
 
 ---
 
-## Para dados
-
-O sistema pode gerar informações como:
-
-- quantidade de inscritos
-- presença nos eventos
-- eventos mais populares
-
----
-
-# 6. Instalação e Uso
+## 6. Instalação e Uso
 
 ```bash
-# Clone o projeto
+# 1. Clone o projeto
 git clone https://github.com/seu-usuario/campusflow.git
-
 cd campusflow
 
-# Execute os containers
+# 2. Execute os containers
 docker compose up --build
 
-# Front-end
+# 3. Front-end (sem Docker)
 npm install
 npm run dev
 
-# Back-end
+# 4. Back-end (sem Docker)
 ./mvnw spring-boot:run
+```
+
+### Uso
+
+Abra: `http://localhost:5173`
+
+**Fluxo de teste:**
+1. Criar conta
+2. Criar evento
+3. Fazer inscrição
+4. Gerar QR Code
+5. Fazer check-in
+
+---
+
+## 7. Roadmap
+
+- [ ] Dashboard simples de métricas
+- [ ] Exportação de lista de participantes em CSV
+- [ ] Upload de imagem para eventos
+- [ ] Sistema de certificados automáticos
+- [ ] Responsividade mobile
+
+---
+
+## 8. Considerações Finais
+
+O CampusFlow resolve problemas reais da organização de eventos universitários, focando em praticidade e facilidade de uso. O projeto foi desenvolvido com arquitetura simples e de fácil manutenção, permitindo evoluções sem aumentar a complexidade desnecessariamente.
